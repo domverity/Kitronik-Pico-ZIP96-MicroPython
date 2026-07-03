@@ -1,11 +1,13 @@
 """
 zip96 - an improved MicroPython driver for the Kitronik ZIP96 Retro Gamer
-(product code 5347) for the Raspberry Pi Pico.
+(product code 5347) for the Raspberry Pi Pico. The board doubles as a
+general-purpose HMI controller: six buttons, a 12x8 LED matrix, a buzzer
+and a vibration motor, none of which are gaming-specific.
 
 Improvements over the stock ZIP96Pico.py:
 
   * Buttons are interrupt driven (via picozero) with debouncing - attach
-    handlers with ``gamer.a.when_pressed = my_function`` instead of polling.
+    handlers with ``controller.a.when_pressed = my_function`` instead of polling.
   * The LED matrix driver keeps the PIO/WS2812 state machine but renders
     through a pre-computed brightness lookup table into a pre-allocated
     buffer, so ``show()`` does no floating point maths and no allocation.
@@ -23,13 +25,13 @@ Quick start::
 
     from zip96 import ZIP96, RED, WHITE
 
-    gamer = ZIP96(brightness=15)
-    gamer.a.when_pressed = lambda: gamer.vibration.buzz(0.1)
-    gamer.screen.scroll_text("HELLO WORLD", RED)
-    choice = gamer.menu(["SNAKE", "TETRIS", "OFF"])
+    controller = ZIP96(brightness=15)
+    controller.a.when_pressed = lambda: controller.vibration.buzz(0.1)
+    controller.screen.scroll_text("HELLO WORLD", RED)
+    choice = controller.menu(["OPTION A", "OPTION B", "OFF"])
 
 The original Kitronik API (KitronikZIP96, Screen.setLEDMatrix, Buzzer.playTone,
-Vibrate.vibrate, button.pressed() etc.) is kept as aliases, so existing games
+Vibrate.vibrate, button.pressed() etc.) is kept as aliases, so existing scripts
 run after changing ``import ZIP96Pico`` to ``import zip96 as ZIP96Pico``.
 """
 
@@ -110,7 +112,7 @@ def _claim_state_machine(program, freq, sideset_base):
 
 
 class Button(_Button):
-    """One of the six gamer buttons. Active high (the board pulls the pin
+    """One of the six controller buttons. Active high (the board pulls the pin
     down), interrupt driven and debounced by picozero.
 
     Use ``is_pressed`` for polling and ``when_pressed`` / ``when_released``
@@ -380,7 +382,7 @@ class Screen:
         """Scroll ``text`` across the screen once (blocking).
 
         ``stop`` is an optional callable checked before each frame - return
-        True to abort, e.g. ``stop=gamer.b.pressed``.
+        True to abort, e.g. ``stop=controller.b.pressed``.
         """
         text = str(text)
         end = -(self.text_width(text) + 1)
@@ -414,13 +416,13 @@ class Menu:
     shows the current position. ``run()`` blocks and returns the selected
     index, or None if cancelled::
 
-        menu = Menu(gamer, ["SNAKE", "PONG", "OFF"])
+        menu = Menu(controller, ["OPTION A", "OPTION B", "OFF"])
         choice = menu.run()
     """
 
-    def __init__(self, gamer, items, colour=WHITE, highlight=CYAN,
+    def __init__(self, controller, items, colour=WHITE, highlight=CYAN,
                  background=BLACK, indicator=GREY, step_ms=120, sounds=True):
-        self._gamer = gamer
+        self._controller = controller
         self._items = [str(item) for item in items]
         self._colour = colour
         self._highlight = highlight
@@ -435,20 +437,20 @@ class Menu:
         self._nav += step
 
     def _click(self, freq):
-        if self._sounds and self._gamer.buzzer:
-            self._gamer.buzzer.play(freq, 0.04, wait=False)
+        if self._sounds and self._controller.buzzer:
+            self._controller.buzzer.play(freq, 0.04, wait=False)
 
     def run(self):
         if not self._items:
             return None
-        gamer = self._gamer
-        screen = gamer.screen
-        buttons = (gamer.up, gamer.down, gamer.a, gamer.b)
+        controller = self._controller
+        screen = controller.screen
+        buttons = (controller.up, controller.down, controller.a, controller.b)
         saved_handlers = [b.when_pressed for b in buttons]
-        gamer.up.when_pressed = lambda: self._select_item(-1)
-        gamer.down.when_pressed = lambda: self._select_item(1)
-        gamer.a.when_pressed = lambda: setattr(self, "_action", "select")
-        gamer.b.when_pressed = lambda: setattr(self, "_action", "cancel")
+        controller.up.when_pressed = lambda: self._select_item(-1)
+        controller.down.when_pressed = lambda: self._select_item(1)
+        controller.a.when_pressed = lambda: setattr(self, "_action", "select")
+        controller.b.when_pressed = lambda: setattr(self, "_action", "cancel")
         self._nav = 0
         self._action = None
         index = 0
@@ -463,8 +465,8 @@ class Menu:
                     self._click(660)
                 if self._action == "select":
                     self._click(990)
-                    if gamer.vibration:
-                        gamer.vibration.buzz(0.08)
+                    if controller.vibration:
+                        controller.vibration.buzz(0.08)
                     return index
                 if self._action == "cancel":
                     self._click(220)
@@ -480,7 +482,7 @@ class Menu:
             screen.clear(show=True)
 
     def _draw(self, index, tick):
-        screen = self._gamer.screen
+        screen = self._controller.screen
         screen.fill(self._background)
         label = self._items[index]
         width = screen.text_width(label)
