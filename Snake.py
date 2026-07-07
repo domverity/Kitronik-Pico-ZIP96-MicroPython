@@ -1,4 +1,4 @@
-import ZIP96Pico
+import zip96
 from time import sleep_ms
 import _thread
 from random import randint
@@ -88,38 +88,38 @@ def gamerInput(gamer, buzzer, haptic):
     while alive:
         # When up pressed, change snake direction to Up
         if (gamer.Up.pressed()):
-            haptic.vibrate()
+            #haptic.vibrate()
             direction = "Up"
             sleep_ms(100)
         
         # When up pressed, change snake direction to Down
         if (gamer.Down.pressed()):
-            haptic.vibrate()
+            #haptic.vibrate()
             direction = "Down"
             sleep_ms(100)
         
         # When up pressed, change snake direction to Left
         if (gamer.Left.pressed()):
-            haptic.vibrate()
+            #haptic.vibrate()
             direction = "Left"
             sleep_ms(100)
         
         # When up pressed, change snake direction to Right
         if (gamer.Right.pressed()):
-            haptic.vibrate()
+            #haptic.vibrate()
             direction = "Right"
             sleep_ms(100)
         
-        haptic.stop()
+        #haptic.stop()
     
     buzzer.playTone(440)
     sleep_ms(500)
     buzzer.stopTone()
 
 # Setup ZIP96Pico variables
-gamer = ZIP96Pico.KitronikZIP96()
+gamer = zip96.KitronikZIP96()
 screen = gamer.Screen
-screen.setBrightness(10)
+screen.setBrightness(5)
 buzzer = gamer.Buzzer
 haptic = gamer.Vibrate
 
